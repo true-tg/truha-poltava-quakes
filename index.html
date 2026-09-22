@@ -421,6 +421,70 @@
             color: var(--truha-yellow);
         }
 
+        /* Стилі для підказки (Tooltip) Афтершок */
+        .tooltip-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            cursor: help;
+        }
+
+        .info-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 15px;
+            height: 15px;
+            background: #111111;
+            color: var(--truha-yellow);
+            border-radius: 50%;
+            font-size: 10px;
+            font-weight: 800;
+            font-style: normal;
+            line-height: 1;
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            opacity: 0;
+            width: 250px;
+            background-color: rgba(17, 17, 17, 0.96);
+            color: #FFFFFF;
+            text-align: left;
+            border-radius: 12px;
+            padding: 10px 12px;
+            position: absolute;
+            z-index: 100;
+            bottom: 130%;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 222, 0, 0.4);
+            font-size: 11px;
+            font-weight: 500;
+            line-height: 1.4;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+            pointer-events: none;
+        }
+
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -6px;
+            border-width: 6px;
+            border-style: solid;
+            border-color: rgba(17, 17, 17, 0.96) transparent transparent transparent;
+        }
+
+        .tooltip-wrap:hover .tooltip-text,
+        .tooltip-wrap.active .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
         /* Футер */
         footer {
             margin-top: 10px;
@@ -439,6 +503,14 @@
             .badge-live { display: none; }
             .truha-logo { height: 30px; }
             #quakeMap { height: 300px; }
+            .tooltip-text {
+                left: 0;
+                transform: translateX(0);
+                width: 220px;
+            }
+            .tooltip-text::after {
+                left: 30px;
+            }
         }
     </style>
 </head>
@@ -511,7 +583,18 @@
 <script>
     // 24 підтверджені події у Полтавській області
     const earthquakeData = [
-        { id: 1, date: "22.09.2026", time: "14:08:01", mag: 2.5, lat: 49.55, lng: 34.27, coords: "+49.55, +34.27", year: "2026", note: "Афтершок після головного удару" },
+        { 
+            id: 1, 
+            date: "22.09.2026", 
+            time: "14:08:01", 
+            mag: 2.5, 
+            lat: 49.55, 
+            lng: 34.27, 
+            coords: "+49.55, +34.27", 
+            year: "2026", 
+            isAftershock: true,
+            note: "після головного удару" 
+        },
         { id: 2, date: "22.09.2026", time: "12:49:45", mag: 4.2, lat: 49.57, lng: 34.31, coords: "+49.57, +34.31", year: "2026", note: "Найпотужніший землетрус з 2022 року", highlight: true },
         { id: 3, date: "23.08.2026", time: "20:38:40", mag: 2.7, lat: 49.56, lng: 33.98, coords: "+49.56, +33.98", year: "2026" },
         { id: 4, date: "15.08.2026", time: "06:33:19", mag: 2.4, lat: 49.87, lng: 33.16, coords: "+49.87, +33.16", year: "2026" },
@@ -593,11 +676,12 @@
                 });
             }
 
+            const noteText = item.isAftershock ? 'Афтершок після головного удару' : item.note;
             const popupContent = `
                 <div style="font-family: inherit; font-size: 13px; line-height: 1.4;">
                     <b style="font-size: 14px;">${item.date} • ${item.time}</b><br>
                     Магнітуда: <b>${item.mag} M</b><br>
-                    ${item.note ? `<span style="color:#d49200; font-weight:600;">${item.note}</span><br>` : ''}
+                    ${noteText ? `<span style="color:#d49200; font-weight:600;">${noteText}</span><br>` : ''}
                     <span style="color: #666; font-size: 11px;">Координати: ${item.coords}</span>
                 </div>
             `;
@@ -615,6 +699,16 @@
         document.getElementById('quakeMap').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
+    function toggleTooltip(event, el) {
+        event.stopPropagation();
+        el.classList.toggle('active');
+    }
+
+    // Закриття підказки при кліку в будь-якому місці екрана
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.tooltip-wrap.active').forEach(t => t.classList.remove('active'));
+    });
+
     function renderEvents(filter = 'all') {
         const timeline = document.getElementById('eventsTimeline');
         timeline.innerHTML = '';
@@ -628,6 +722,21 @@
             card.className = `event-card ${item.highlight ? 'highlight' : ''}`;
             card.onclick = () => focusOnEvent(item.id, item.lat, item.lng);
 
+            let noteHtml = '';
+            if (item.isAftershock) {
+                noteHtml = `
+                    <span class="tooltip-wrap" onclick="toggleTooltip(event, this)">
+                        <strong>Афтершок</strong>
+                        <span class="info-badge">i</span>
+                        <span class="tooltip-text">
+                            <strong>Афтершок (повторний поштовх)</strong> — це підземний поштовх, який відбувається після головного, сильнішого землетрусу та поступається йому за магнітудою.
+                        </span>
+                    </span> ${item.note} • 
+                `;
+            } else if (item.note) {
+                noteHtml = `${item.note} • `;
+            }
+
             card.innerHTML = `
                 <div class="event-left">
                     <div class="event-icon">${item.highlight ? '⚡' : '📍'}</div>
@@ -636,7 +745,7 @@
                             ${item.date} • ${item.time}
                             ${item.highlight ? '<span class="badge-record">РЕКОРД</span>' : ''}
                         </h3>
-                        <p>${item.note ? item.note + ' • ' : ''}Координати: ${item.coords}</p>
+                        <p>${noteHtml}Координати: ${item.coords}</p>
                     </div>
                 </div>
                 <div class="event-right">
